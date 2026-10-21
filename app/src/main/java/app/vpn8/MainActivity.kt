@@ -1,4 +1,6 @@
-package app.vpn8
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
+package com.pixvpn.gram
 
 import android.Manifest
 import android.content.Context
@@ -16,6 +18,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -74,6 +78,7 @@ private fun Root(onLanguageChanged: () -> Unit) {
     }
 
     val glow = LocalExtra.current.a
+    val motion = MaterialTheme.motionScheme
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(
             Modifier.fillMaxSize().background(
@@ -82,7 +87,12 @@ private fun Root(onLanguageChanged: () -> Unit) {
         ) {
             AnimatedContent(
                 targetState = screen,
-                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(140)) },
+                transitionSpec = {
+                    (fadeIn(motion.defaultEffectsSpec()) +
+                        slideInHorizontally(motion.defaultSpatialSpec()) { it / 16 }) togetherWith
+                        (fadeOut(motion.fastEffectsSpec()) +
+                            slideOutHorizontally(motion.fastSpatialSpec()) { -it / 24 })
+                },
                 label = "nav"
             ) { sc ->
                 when (sc) {

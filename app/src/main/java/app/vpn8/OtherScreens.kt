@@ -1,4 +1,6 @@
-package app.vpn8
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
+package com.pixvpn.gram
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -7,6 +9,7 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +29,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +53,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,8 +61,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-const val GITHUB_URL = "https://github.com/Mrmmd2004/8vpn"
-const val TELEGRAM_URL = "https://t.me/Clubapp8"
+const val GITHUB_URL = "https://github.com/freejam099-alt/PixVPN"
 
 @Composable
 fun LogsScreen(back: () -> Unit) {
@@ -63,29 +69,39 @@ fun LogsScreen(back: () -> Unit) {
     val c = MaterialTheme.colorScheme
     val logs by Engine.logs.collectAsStateWithLifecycle()
     val text = logs.joinToString("\n")
-    Page(stringResource(R.string.logs), back, actions = {
+    Page(stringResource(R.string.logs), back) {
+        Column(Modifier.fillMaxSize()) {
+        HorizontalFloatingToolbar(expanded = true,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp),
+            colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors()) {
         IconBtn(Ico.COPY, {
             val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("8vpn-log", text))
+            cm.setPrimaryClip(ClipData.newPlainText("pixvpn-log", text))
             Toast.makeText(ctx, R.string.copied, Toast.LENGTH_SHORT).show()
         })
         IconBtn(Ico.SHARE, {
             val i = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
             ctx.startActivity(Intent.createChooser(i, null))
         })
-        IconBtn(Ico.TRASH, { Engine.logs.value = emptyList() }, tint = c.error)
-    }) {
+        IconBtn(Ico.TRASH, { Engine.logs.value = emptyList() }, enabled = logs.isNotEmpty(), tint = c.error)
+        }
+        Box(Modifier.weight(1f)) {
         if (logs.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon8(Ico.LOGS, c.outline, 44.dp)
-                    Spacer(Modifier.height(12.dp))
-                    Text(stringResource(R.string.no_logs), color = c.onSurfaceVariant)
+                AppCard(Modifier.padding(vertical = 16.dp)) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon8(Ico.LOGS, c.outline, 44.dp)
+                        Text(stringResource(R.string.no_logs), color = c.onSurfaceVariant, textAlign = TextAlign.Center)
+                    }
                 }
             }
         } else {
-            Box(Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)).background(c.surfaceContainer)) {
-                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(14.dp)) {
+            AppCard(Modifier.fillMaxSize()) {
+                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
                     items(logs.size) { i ->
                         LogLine(logs[logs.size - 1 - i])
                     }
@@ -93,6 +109,8 @@ fun LogsScreen(back: () -> Unit) {
             }
         }
     }
+        }
+        }
 }
 
 @Composable
@@ -134,8 +152,7 @@ fun AboutScreen(back: () -> Unit) {
                     InfoRow(stringResource(R.string.tunnel_version), "2.19.0")
                 }
             }
-            LinkRow(Ico.CODE, stringResource(R.string.github), "Mrmmd2004/8vpn") { uri.openUri(GITHUB_URL) }
-            LinkRow(Ico.SEND, stringResource(R.string.telegram), "@Clubapp8") { uri.openUri(TELEGRAM_URL) }
+            LinkRow(Ico.CODE, stringResource(R.string.github), "freejam099-alt/PixVPN") { uri.openUri(GITHUB_URL) }
             AppCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.license_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = c.primary)
@@ -182,9 +199,11 @@ fun SplitScreen(back: () -> Unit) {
     val c = MaterialTheme.colorScheme
     val s by SettingsStore.flow.collectAsStateWithLifecycle()
     var apps by remember { mutableStateOf<List<AppItem>>(emptyList()) }
+    var appsLoading by remember { mutableStateOf(true) }
     var q by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
+        appsLoading = true
         apps = withContext(Dispatchers.IO) {
             val pm = ctx.packageManager
             val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -194,6 +213,7 @@ fun SplitScreen(back: () -> Unit) {
                 .distinctBy { it.pkg }
                 .sortedBy { it.label.lowercase() }
         }
+        appsLoading = false
     }
 
     Page(stringResource(R.string.split_tunnel), back) {
@@ -204,25 +224,48 @@ fun SplitScreen(back: () -> Unit) {
             color = c.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
         )
         val shown = apps.filter { q.isBlank() || it.label.contains(q, true) || it.pkg.contains(q, true) }
-        LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(shown, key = { it.pkg }) { a ->
-                val checked = a.pkg in s.splitApps
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                        .background(if (checked) c.primary.copy(alpha = 0.12f) else c.surfaceContainer)
-                        .clickable {
-                            SettingsStore.update { it.copy(splitApps = if (checked) it.splitApps - a.pkg else it.splitApps + a.pkg) }
-                        }.padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.size(38.dp).clip(CircleShape).background(c.primary.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
-                        Text(a.label.take(1).uppercase(), color = c.primary, fontWeight = FontWeight.Bold)
+        when {
+            appsLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                LoadingIndicator()
+            }
+            shown.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                AppCard(Modifier.padding(vertical = 16.dp)) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(stringResource(R.string.no_apps), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.no_apps_hint), color = c.onSurfaceVariant, textAlign = TextAlign.Center)
                     }
-                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                        Text(a.label, maxLines = 1, style = MaterialTheme.typography.bodyMedium)
-                        Text(a.pkg, fontSize = 11.sp, maxLines = 1, color = c.onSurfaceVariant)
+                }
+            }
+            else -> LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(shown, key = { it.pkg }) { a ->
+                    val checked = a.pkg in s.splitApps
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                            .background(if (checked) c.primary.copy(alpha = 0.12f) else c.surfaceContainer)
+                            .toggleable(
+                                value = checked,
+                                role = Role.Checkbox,
+                                onValueChange = {
+                                    SettingsStore.update { current ->
+                                        current.copy(splitApps = if (it) current.splitApps + a.pkg else current.splitApps - a.pkg)
+                                    }
+                                }
+                            ).padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(Modifier.size(40.dp).clip(CircleShape).background(c.primary.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                            Text(a.label.take(1).uppercase(), color = c.primary, fontWeight = FontWeight.Bold)
+                        }
+                        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                            Text(a.label, maxLines = 1, style = MaterialTheme.typography.bodyMedium)
+                            Text(a.pkg, fontSize = 11.sp, maxLines = 1, color = c.onSurfaceVariant)
+                        }
+                        Checkbox(checked = checked, onCheckedChange = null)
                     }
-                    Checkbox(checked = checked, onCheckedChange = null)
                 }
             }
         }

@@ -1,4 +1,4 @@
-package app.vpn8
+package com.pixvpn.gram
 
 import android.content.BroadcastReceiver
 import android.content.Context

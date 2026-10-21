@@ -1,4 +1,6 @@
-package app.vpn8
+package com.pixvpn.gram
+
+import app.vpn8.Tun2Socks
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -41,11 +43,12 @@ class TunnelService : VpnService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var job: Job? = null
     private var statsJob: Job? = null
-    private var core: CoreProcess? = null
+    @Volatile private var core: CoreProcess? = null
     private var tun: ParcelFileDescriptor? = null
     private var hevOn = false
     private var t2sOn = false
     private var sbOn = false
+    @Volatile private var hevRestartFailed = false
     private var foreground = false
     private var stopping = false
     @Volatile private var rescanRequested = false
@@ -53,6 +56,7 @@ class TunnelService : VpnService() {
     private var netCb: ConnectivityManager.NetworkCallback? = null
     private var lastNet: Network? = null
     @Volatile private var connectedAt = 0L
+    @Volatile private var sessionGeneration = 0L
     /** Last time the TUN engine reported data arriving for the apps (SystemClock.elapsedRealtime). */
     @Volatile private var lastRxAt = 0L
     private var psiSlot = 0
@@ -104,6 +108,8 @@ class TunnelService : VpnService() {
         Engine.lastReason.value = null
         Engine.resetLive()
         Engine.status.value = Status(Phase.CONNECTING, 1)
+        sessionGeneration++
+        hevRestartFailed = false
         networkChanged = false
         psiSlot = 0
         watchNetwork()
@@ -144,6 +150,7 @@ class TunnelService : VpnService() {
         var s = base
         val port = ArgBuilder.exitPort(s)
         var failures = 0
+        var dropFailures = 0
         var cycle = 0
         var everUp = false
         var forceFresh = false
@@ -173,11 +180,14 @@ class TunnelService : VpnService() {
             Engine.status.value = Status(if (everUp) Phase.RECONNECTING else Phase.CONNECTING, attempt)
             val fresh = cycle > 0 || forceFresh
             forceFresh = false
+            // This flag describes only the previous HEV instance. A new attempt
+            // must not inherit it and abort monitoring before the replacement is up.
+            hevRestartFailed = false
             Engine.log("Starting core, attempt $attempt of ${s.tries()}" + if (fresh) " (fresh scan)" else "")
 
             if (startCore(s, port, fresh = fresh)) {
                 if (s.vpnMode && tun == null && !bringUpTun(s, port)) {
-                    finish(getString(R.string.vpn_iface_failed))
+                    finish(Engine.lastReason.value ?: getString(R.string.vpn_iface_failed))
                     return
                 }
                 everUp = true
@@ -188,14 +198,23 @@ class TunnelService : VpnService() {
                 lastRxAt = connectedAt
                 Engine.status.value = Status(Phase.CONNECTED)
                 Engine.log("Connected via ${s.activeLabel()}")
-                scope.launch { fetchExit(port) }
+                val generation = sessionGeneration
+                scope.launch { fetchExit(port, generation) }
                 val speedJob = scope.launch {
                     // Only measures and shows the speed. It no longer restarts the core: a restart
                     // in the middle of a user's download cuts that download.
-                    checkSpeed(port)
+                    checkSpeed(port, generation)
                 }
                 monitor(s, port)
                 speedJob.cancel()
+                if (hevRestartFailed) {
+                    // A failed in-place HEV restart leaves the existing TUN unusable.
+                    // Tear down the TUN as well as the core before the next attempt.
+                    stopCore()
+                    withContext(Dispatchers.IO) { stopTunSide() }
+                    delay(s.retryMs())
+                    continue
+                }
                 Engine.pingMs.value = null
                 Engine.exitInfo.value = null
                 Engine.speedBps.value = null
@@ -216,6 +235,21 @@ class TunnelService : VpnService() {
                     stopCore()
                     delay(1000)
                     continue
+                }
+                // A connection that came up but then failed its health checks is still a
+                // failed attempt. Keep this counter separate from start failures: otherwise
+                // every short-lived reconnect reset the counter and the service could loop
+                // forever without ever surfacing an IDLE error to the UI.
+                dropFailures++
+                if (dropFailures >= s.tries()) {
+                    dropFailures = 0
+                    cycle++
+                    if (cycle >= 2) {
+                        stopCore()
+                        finish(Engine.lastReason.value ?: getString(R.string.connect_failed))
+                        return
+                    }
+                    Engine.log("Connection kept dropping. Starting a fresh scan cycle")
                 }
                 // The gateway that just dropped is often the very one being throttled, so a drop is
                 // followed by a fresh scan instead of reusing it (same rule as the Windows app).
@@ -331,6 +365,7 @@ class TunnelService : VpnService() {
         var fails = 0
         while (currentCoroutineContext().isActive) {
             if (rescanRequested || networkChanged) return
+            if (hevRestartFailed) return
             if (core?.alive != true) {
                 Engine.log("Core is not running anymore")
                 Engine.lastReason.value = getString(R.string.reason_core)
@@ -372,7 +407,7 @@ class TunnelService : VpnService() {
      * is clearly too slow (a reason to look for a better gateway); false when it is fine or when
      * the test could not run at all.
      */
-    private suspend fun checkSpeed(port: Int): Boolean {
+    private suspend fun checkSpeed(port: Int, generation: Long): Boolean {
         delay(2000) // let the tunnel settle
         val hosts = listOf(
             "speed.cloudflare.com" to "/__down?bytes=1000000",
@@ -384,6 +419,7 @@ class TunnelService : VpnService() {
             val (status, bytes, ms) = r
             if (status != 200 || bytes <= 0 || ms <= 0) continue
             val bps = bytes * 1000 / ms
+            if (generation != sessionGeneration) return false
             Engine.speedBps.value = bps
             Engine.log("Speed test: ${bps / 1024} KB/s ($bytes bytes in $ms ms via $host)")
             return bps < SLOW_BPS
@@ -392,11 +428,13 @@ class TunnelService : VpnService() {
         return false
     }
 
-    private suspend fun fetchExit(port: Int) {
+    private suspend fun fetchExit(port: Int, generation: Long) {
         val r = withContext(Dispatchers.IO) { Socks.httpGet(port, "www.cloudflare.com", "/cdn-cgi/trace", 15_000) } ?: return
         val map = r.second.lines().mapNotNull { l -> l.split("=", limit = 2).takeIf { it.size == 2 } }.associate { it[0] to it[1].trim() }
         val ip = map["ip"] ?: return
-        Engine.exitInfo.value = if (map["loc"] != null) "$ip (${map["loc"]})" else ip
+        if (generation == sessionGeneration && Engine.status.value.phase == Phase.CONNECTED) {
+            Engine.exitInfo.value = if (map["loc"] != null) "$ip (${map["loc"]})" else ip
+        }
     }
 
     // ---------------------------------------------------------------- network
@@ -441,7 +479,7 @@ class TunnelService : VpnService() {
 
     private fun bringUpTun(s: Settings, port: Int): Boolean {
         val b = Builder()
-            .setSession("8 VPN")
+            .setSession("PixVPN")
             .setMtu(s.mtu())
             .addAddress("198.18.0.1", 32)
             .addRoute("0.0.0.0", 0)
@@ -470,9 +508,24 @@ class TunnelService : VpnService() {
         if (remoteDns) b.addDnsServer("198.18.0.2") else tunDnsServers(s).forEach { runCatching { b.addDnsServer(it) } }
 
         val apps = s.splitApps
+        if (s.splitMode == "include" && apps.isEmpty()) {
+            val reason = "Split tunneling include mode has no selected apps; refusing to start VPN"
+            Engine.lastReason.value = reason
+            Engine.log("$reason (fail closed)")
+            return false
+        }
         try {
             if (s.splitMode == "include" && apps.isNotEmpty()) {
-                apps.forEach { runCatching { b.addAllowedApplication(it) } }
+                for (app in apps) {
+                    try {
+                        b.addAllowedApplication(app)
+                    } catch (e: Exception) {
+                        val reason = "Split tunneling include package is unavailable: $app"
+                        Engine.lastReason.value = reason
+                        Engine.log("$reason (fail closed): ${e.message}")
+                        return false
+                    }
+                }
             } else {
                 // The core's own sockets must never loop back into the tunnel.
                 b.addDisallowedApplication(packageName)
@@ -678,12 +731,19 @@ class TunnelService : VpnService() {
             val fd = tun ?: return@synchronized false
             if (!hevOn || stopping) return@synchronized false
             runCatching { TProxyService.TProxyStopService() }
+            hevOn = false
             try { Thread.sleep(300) } catch (_: InterruptedException) { }
             hevOn = try {
                 TProxyService.TProxyStartService(File(filesDir, "hev.yml").path, fd.fd)
             } catch (e: Throwable) {
                 Engine.log("hev restart failed: ${e.message}")
                 false
+            }
+            if (!hevOn) {
+                hevRestartFailed = true
+                Engine.lastReason.value = "VPN data engine restart failed; reconnecting"
+                Engine.status.value = Status(Phase.RECONNECTING)
+                Engine.log("VPN data engine is down; marking connection disconnected and reconnecting")
             }
             hevOn
         }
@@ -730,7 +790,7 @@ class TunnelService : VpnService() {
     private fun acquireWake(s: Settings) {
         if (!s.keepAwake) return
         val pm = getSystemService(PowerManager::class.java)
-        wake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "8vpn:core").apply {
+        wake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "pixvpn:core").apply {
             setReferenceCounted(false)
             acquire()
         }
@@ -738,7 +798,7 @@ class TunnelService : VpnService() {
         runCatching {
             val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             @Suppress("DEPRECATION")
-            wifi = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "8vpn:wifi").apply {
+            wifi = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "pixvpn:wifi").apply {
                 setReferenceCounted(false)
                 acquire()
             }
@@ -785,8 +845,8 @@ class TunnelService : VpnService() {
     companion object {
         private const val CHANNEL = "vpn"
         private const val NOTIF_ID = 8
-        const val ACTION_STOP = "app.vpn8.STOP"
-        const val ACTION_RESCAN = "app.vpn8.RESCAN"
+        const val ACTION_STOP = "com.pixvpn.gram.STOP"
+        const val ACTION_RESCAN = "com.pixvpn.gram.RESCAN"
         private const val SLOW_BPS = 150_000L // below ~150 KB/s the link is treated as unusable
 
         fun rescan(ctx: Context) {

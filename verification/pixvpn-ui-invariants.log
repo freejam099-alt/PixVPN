@@ -1,0 +1,2 @@
+PASS: PixVPN namespace, branding, About, fixed-size responsive hero, SVG path animation, failure/retry, semantics, rapid-tap guard
+NOTE: device layout, TalkBack, frame times and VPN connectivity still need real-device tests.

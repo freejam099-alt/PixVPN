@@ -1,4 +1,4 @@
-package app.vpn8
+package com.pixvpn.gram
 
 import java.io.InputStream
 import java.net.InetSocketAddress
@@ -19,11 +19,15 @@ object Socks {
      * Downloads up to [maxBytes] of [path] over plain HTTP through the local SOCKS5 proxy and
      * returns (HTTP status, body bytes received, milliseconds), or null when no HTTP answer
      * arrived. Stops after [budgetMs] so a dead-slow link cannot block for long.
-     */
+    */
     fun download(port: Int, host: String, path: String, maxBytes: Long, budgetMs: Long): Triple<Int, Long, Long>? = try {
+        val t0 = System.nanoTime()
+        val deadline = t0 + budgetMs.coerceAtLeast(1) * 1_000_000
         Socket().use { s ->
-            s.connect(InetSocketAddress("127.0.0.1", port), 5000)
-            s.soTimeout = 5000
+            val connectMs = ((deadline - System.nanoTime()) / 1_000_000).toInt().coerceIn(1, 5000)
+            s.connect(InetSocketAddress("127.0.0.1", port), connectMs)
+            fun remainingTimeout() = ((deadline - System.nanoTime()) / 1_000_000).toInt().coerceIn(1, 5000)
+            s.soTimeout = remainingTimeout()
             val o = s.getOutputStream()
             val i = s.getInputStream()
             o.write(byteArrayOf(5, 1, 0)); o.flush()
@@ -39,7 +43,6 @@ object Socks {
                 else -> { val l = ByteArray(1); readFully(i, l); (l[0].toInt() and 0xff) + 2 }
             }
             readFully(i, ByteArray(skip))
-            val t0 = System.nanoTime()
             o.write("GET $path HTTP/1.1\r\nHost: $host\r\nConnection: close\r\n\r\n".toByteArray()); o.flush()
 
             val head = StringBuilder()
@@ -47,9 +50,9 @@ object Socks {
             var body = 0L
             var status = 0
             var headDone = false
-            val deadline = t0 + budgetMs * 1_000_000
             try {
                 while (System.nanoTime() < deadline) {
+                    s.soTimeout = remainingTimeout()
                     val n = i.read(buf)
                     if (n < 0) break
                     if (!headDone) {

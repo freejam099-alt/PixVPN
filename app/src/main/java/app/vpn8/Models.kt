@@ -1,4 +1,4 @@
-package app.vpn8
+package com.pixvpn.gram
 
 import android.content.Context
 import android.content.SharedPreferences

@@ -1,0 +1,11 @@
+{
+  "source_url": "https://github.com/Mrmmd2004/8vpn/releases/download/VPNAndroid_8VPN_v2.8/8VPN-arm64-v8a.apk",
+  "source_apk_sha256": "fb506c79236fa952c49c153d245a17d108f3646f40d14cde909f0fde80c5cb88",
+  "method": "Four unchanged native runtimes reused from official project ARM64 v2.8 release, not rebuilt. libbox separately rebuilt from official v1.13.21 source.",
+  "native": {
+    "libaether.so": "6aa0ce373b93ff10430b06ca5a034253f5b70697b0865c84299d6e2eeb01b7b5",
+    "libhev-socks5-tunnel.so": "6bd27ac2b44b7e5b3e44d08de1c3cf529a0898d70300a40ca2f695f87ac13c29",
+    "liblyrebird.so": "185cdbcfb8189cb502e841bc21ee5e19545bd0c4699bb656d21028ef5eacbd73",
+    "libpsiphon.so": "7cab04ebf82ceed76ae53b99c306db26233b80825b930e2e7288f07a4087387a"
+  }
+}

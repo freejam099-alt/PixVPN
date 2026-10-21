@@ -1,0 +1,7 @@
+PASS: ARM64 only; all five real native runtimes present; ELF headers checked
+PASS: PixVPN / com.pixvpn.gram / 2.9 (29)
+PASS: manifest is not debuggable
+PASS: signature verified and matches owner certificate
+SHA256: 9736c9c47db67c8cfe58c547f9a018ed8f1c003faea3a6a990a6270c1078a6ce
+APK: /workspace/8vpn/app/build/outputs/apk/release/app-arm64-v8a-release.apk
+READY: /workspace/8vpn/out/PixVPN-2.9-arm64-v8a.apk 37034768 bytes

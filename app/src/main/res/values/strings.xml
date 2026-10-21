@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">8 VPN</string>
+    <string name="app_name" translatable="false">PixVPN</string>
     <string name="core_aether" translatable="false">Aether</string>
     <string name="core_psiphon" translatable="false">Psiphon only</string>
     <string name="core_tor" translatable="false">Tor only</string>
@@ -21,7 +21,7 @@
     <string name="battery_row_ask">Battery permission: tap to allow</string>
     <string name="battery_already">Already allowed. Nothing to do.</string>
     <string name="battery_title">Permission needed</string>
-    <string name="battery_text">To stay connected in the background, 8 VPN must be exempt from battery optimization. Tap Allow and choose Allow in the next prompt.</string>
+    <string name="battery_text">To stay connected in the background, PixVPN must be exempt from battery optimization. Tap Allow and choose Allow in the next prompt.</string>
     <string name="battery_allow">Allow</string>
     <string name="battery_skip">Not now</string>
     <string name="ping_test">Ping test</string>
@@ -43,6 +43,8 @@
     <string name="about">About</string>
     <string name="back">Back</string>
     <string name="no_logs">No log lines yet.</string>
+    <string name="no_apps">No apps found</string>
+    <string name="no_apps_hint">Try a different search.</string>
 
     <string name="route">Route</string>
     <string name="transport">Transport</string>
@@ -129,9 +131,8 @@
     <string name="core_version">Aether core version</string>
     <string name="tunnel_version">hev-socks5-tunnel version</string>
     <string name="github">GitHub</string>
-    <string name="telegram">Telegram channel</string>
     <string name="license_title">License and credits</string>
-    <string name="license_text">8 VPN is free software released under the GNU AGPL-3.0.\n\nIt is built on Aether by CluvexStudio (AGPL-3.0), hev-socks5-tunnel by heiher (MIT), Psiphon tunnel core and the Tor pluggable transport Lyrebird. Thank you to all of these projects.</string>
+    <string name="license_text">PixVPN is free software released under the GNU AGPL-3.0.\n\nIt is built on Aether by CluvexStudio (AGPL-3.0), hev-socks5-tunnel by heiher (MIT), Psiphon tunnel core and the Tor pluggable transport Lyrebird. Thank you to all of these projects.</string>
 
     <string name="notif_channel">VPN status</string>
     <string name="endpoint">Custom endpoint</string>
@@ -140,4 +141,5 @@
     <string name="endpoint_hint">IP:port, e.g. 162.159.192.1:2408</string>
     <string name="endpoint_note">Leave empty to scan automatically. When set, the scan is skipped and this gateway is used.</string>
     <string name="endpoint_invalid">Invalid endpoint. Use IP:port (IPv6 as [addr]:port). Invalid values are ignored.</string>
+    <string name="pix_retry">Try again</string>
 </resources>

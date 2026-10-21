@@ -1,6 +1,9 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+)
 
-package app.vpn8
+package com.pixvpn.gram
 
 import android.app.Activity
 import android.net.VpnService
@@ -8,15 +11,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +25,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -41,6 +38,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.SplitButtonLayout
+import androidx.compose.material3.SplitButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,13 +53,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -129,7 +133,11 @@ fun HomeScreen(openSettings: () -> Unit, openLogs: () -> Unit) {
         if (r.resultCode == Activity.RESULT_OK) TunnelService.start(ctx)
     }
 
+    var lastToggleAt by remember { mutableStateOf(0L) }
     fun toggle() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastToggleAt < 700L) return
+        lastToggleAt = now
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         if (idle) {
             val pm = ctx.getSystemService(android.os.PowerManager::class.java)
@@ -154,6 +162,7 @@ fun HomeScreen(openSettings: () -> Unit, openLogs: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     showBattery = false
+                    askedBattery = true
                     runCatching {
                         ctx.startActivity(
                             android.content.Intent(
@@ -168,6 +177,7 @@ fun HomeScreen(openSettings: () -> Unit, openLogs: () -> Unit) {
                 TextButton(onClick = {
                     showBattery = false
                     askedBattery = true
+                    lastToggleAt = 0L
                     toggle()
                 }) { Text(stringResource(R.string.battery_skip)) }
             }
@@ -210,9 +220,20 @@ fun HomeScreen(openSettings: () -> Unit, openLogs: () -> Unit) {
             IconBtn(Ico.SETTINGS, openSettings)
         }
 
-        // ---- Hero: connect button + status
-        Spacer(Modifier.height(8.dp))
-        ConnectButton(st.phase, ::toggle, 158.dp)
+        // ---- Hero: a clear state headline followed by the primary action.
+        Spacer(Modifier.height(28.dp))
+        Text(stringResource(title), style = MaterialTheme.typography.headlineLarge,
+            textAlign = TextAlign.Center, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        Spacer(Modifier.height(20.dp))
+        ConnectButton(phase = st.phase, onClick = ::toggle, onOptions = { panelOpen = !panelOpen }, optionsOpen = panelShown, failed = idle && st.error != null)
+        if (st.phase == Phase.CONNECTING || st.phase == Phase.RECONNECTING || st.phase == Phase.STOPPING) {
+            LinearWavyProgressIndicator(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                color = x.busy,
+                trackColor = c.surfaceContainerHighest,
+                amplitude = 0.45f,
+            )
+        }
         Spacer(Modifier.height(4.dp))
         Row(
             Modifier.clip(RoundedCornerShape(50)).background(statusColor.copy(alpha = 0.12f)).padding(horizontal = 14.dp, vertical = 6.dp),
@@ -220,7 +241,7 @@ fun HomeScreen(openSettings: () -> Unit, openLogs: () -> Unit) {
         ) {
             Box(Modifier.size(8.dp).clip(CircleShape).background(statusColor))
             Spacer(Modifier.width(8.dp))
-            Text(stringResource(title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = statusColor)
+            Text(s.activeLabel(), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = statusColor)
         }
         Spacer(Modifier.height(8.dp))
         val showAttempt = st.phase == Phase.RECONNECTING || (st.phase == Phase.CONNECTING && st.attempt > 1)
@@ -247,11 +268,15 @@ fun HomeScreen(openSettings: () -> Unit, openLogs: () -> Unit) {
         // ---- Stats
         Spacer(Modifier.height(18.dp))
         AppCard {
-            Row(Modifier.padding(horizontal = 6.dp, vertical = 16.dp)) {
-                Stat(Ico.BOLT, stringResource(R.string.ping), ping?.let { stringResource(R.string.ms_fmt, it) } ?: "—", Modifier.weight(1f))
-                Stat(Ico.DOWN, stringResource(R.string.download), if (s.vpnMode && live) fmtRate(rx) else "—", Modifier.weight(1f))
-                Stat(Ico.UP, stringResource(R.string.upload), if (s.vpnMode && live) fmtRate(tx) else "—", Modifier.weight(1f))
-                Stat(Ico.GLOBE, stringResource(R.string.link_speed), if (live) speed?.let { fmtRate(it) } ?: "…" else "—", Modifier.weight(1f))
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                Row {
+                    Stat(Ico.BOLT, stringResource(R.string.ping), ping?.let { stringResource(R.string.ms_fmt, it) } ?: "—", Modifier.weight(1f))
+                    Stat(Ico.GLOBE, stringResource(R.string.link_speed), if (live) speed?.let { fmtRate(it) } ?: "…" else "—", Modifier.weight(1f))
+                }
+                Row {
+                    Stat(Ico.DOWN, stringResource(R.string.download), if (s.vpnMode && live) fmtRate(rx) else "—", Modifier.weight(1f))
+                    Stat(Ico.UP, stringResource(R.string.upload), if (s.vpnMode && live) fmtRate(tx) else "—", Modifier.weight(1f))
+                }
             }
         }
         if (!s.vpnMode) {
@@ -279,7 +304,7 @@ fun HomeScreen(openSettings: () -> Unit, openLogs: () -> Unit) {
 
         // ---- Connection setup: mode, core, collapsible options
         Spacer(Modifier.height(14.dp))
-        AppCard(Modifier.animateContentSize()) {
+        AppCard(Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Segmented(
                     listOf(true to stringResource(R.string.mode_vpn), false to stringResource(R.string.mode_proxy)),
@@ -298,7 +323,7 @@ fun HomeScreen(openSettings: () -> Unit, openLogs: () -> Unit) {
                     }
                 }
                 val summary = stringResource(if (s.vpnMode) R.string.mode_vpn else R.string.mode_proxy) + "  ·  " + s.activeLabel()
-                val chevron by animateFloatAsState(if (panelShown) 180f else 0f, label = "chev")
+                val chevron by animateFloatAsState(if (panelShown) 180f else 0f, MaterialTheme.motionScheme.fastSpatialSpec(), label = "chev")
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surfaceContainerHigh)
                         .clickable(enabled = idle) { panelOpen = !panelOpen }.padding(horizontal = 14.dp, vertical = 13.dp),
@@ -340,7 +365,7 @@ private fun Stat(ico: Ico, label: String, value: String, modifier: Modifier = Mo
         Icon8(ico, LocalExtra.current.a, 18.dp)
         Spacer(Modifier.height(8.dp))
         Text(
-            value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, textAlign = TextAlign.Center,
+            value, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, textAlign = TextAlign.Center,
             overflow = TextOverflow.Ellipsis
         )
         Spacer(Modifier.height(2.dp))
@@ -423,59 +448,6 @@ fun RegionButton(s: Settings, enabled: Boolean, onClick: () -> Unit) {
             Spacer(Modifier.width(12.dp))
             Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             Icon8(Ico.CHEVRON, c.onSurfaceVariant, 20.dp, Modifier.rotate(-90f))
-        }
-    }
-}
-
-/** Big round power button with soft expanding rings while the link is up or being set up. */
-@Composable
-fun ConnectButton(phase: Phase, onClick: () -> Unit, diameter: Dp = 158.dp) {
-    val c = MaterialTheme.colorScheme
-    val x = LocalExtra.current
-    val live = phase == Phase.CONNECTED
-    val busy = phase == Phase.CONNECTING || phase == Phase.RECONNECTING || phase == Phase.STOPPING
-
-    val inf = rememberInfiniteTransition(label = "hero")
-    val t by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(2600, easing = LinearEasing)), label = "rings")
-    val breathe by inf.animateFloat(
-        0.95f, 1.04f, infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe"
-    )
-    val glow by animateFloatAsState(if (live) 1f else if (busy) 0.75f else 0f, tween(500), label = "glow")
-    val liveA by animateFloatAsState(if (live) 1f else 0f, tween(450), label = "liveA")
-    val busyA by animateFloatAsState(if (busy) 1f else 0f, tween(300), label = "busyA")
-    val ring = if (busy) x.busy else x.a
-    val fg by animateColorAsState(
-        when { live -> Color.White; busy -> Color(0xFF2B1E00); else -> c.onSurfaceVariant }, label = "fg"
-    )
-
-    Box(Modifier.size(diameter * 1.5f), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            if (glow > 0.01f) {
-                val outer = this.size.minDimension / 2f
-                val core = outer / 1.5f
-                drawCircle(
-                    Brush.radialGradient(listOf(ring.copy(alpha = 0.26f * glow), Color.Transparent), radius = outer),
-                    radius = outer
-                )
-                for (i in 0 until 3) {
-                    val p = (t + i / 3f) % 1f
-                    drawCircle(
-                        color = ring.copy(alpha = (1f - p) * 0.30f * glow),
-                        radius = core + (outer - core) * p,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
-                    )
-                }
-            }
-        }
-        Box(
-            Modifier.size(diameter).scale(if (busy) breathe else 1f).clip(CircleShape)
-                .background(c.surfaceContainerHigh).border(1.dp, c.outlineVariant, CircleShape)
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(Modifier.fillMaxSize().alpha(liveA).background(x.gradient))
-            Box(Modifier.fillMaxSize().alpha(busyA).background(x.busy))
-            Icon8(Ico.POWER, fg, diameter * 0.40f, strokeW = 2.3f)
         }
     }
 }

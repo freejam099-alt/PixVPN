@@ -1,4 +1,4 @@
-package app.vpn8
+package com.pixvpn.gram
 
 import android.content.Context
 import java.io.File
@@ -7,7 +7,7 @@ import kotlin.concurrent.thread
 
 /** Runs the Aether binary (shipped as libaether.so) as a child process. */
 class CoreProcess(private val ctx: Context) {
-    private var proc: Process? = null
+    @Volatile private var proc: Process? = null
 
     val alive: Boolean get() = proc?.isAlive == true
 
@@ -32,7 +32,9 @@ class CoreProcess(private val ctx: Context) {
             for (kv in extraEnv) put(kv.substringBefore('='), kv.substringAfter('='))
             put("AETHER_TOR_PT", "obfs4=$nl/liblyrebird.so;webtunnel=$nl/liblyrebird.so")
         }
-        Engine.log("exec: aether ${args.joinToString(" ")}")
+        // Never print arguments: --upstream and user-supplied extra args may contain
+        // credentials, tokens, or proxy URLs. Keep only the count for diagnostics.
+        Engine.log("exec: aether (arguments redacted; ${args.size} args)")
         val p = pb.start()
         proc = p
         thread(isDaemon = true, name = "aether-log") {

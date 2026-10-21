@@ -1,0 +1,19 @@
+PASS: 10 XML resources parsed
+PASS: no duplicate default/Persian resources
+PASS: Dark onPrimary/primary 10.31:1
+PASS: Dark onSecondary/secondary 7.86:1
+PASS: Dark onPrimaryContainer/primaryContainer 7.72:1
+PASS: Dark onSecondaryContainer/secondaryContainer 7.19:1
+PASS: Dark onTertiary/tertiary 7.94:1
+PASS: Dark onSurface/surface 14.32:1
+PASS: Dark onSurfaceVariant/surfaceVariant 5.49:1
+PASS: Dark onError/error 7.72:1
+PASS: Light onPrimary/primary 6.83:1
+PASS: Light onSecondary/secondary 6.64:1
+PASS: Light onPrimaryContainer/primaryContainer 9.09:1
+PASS: Light onSecondaryContainer/secondaryContainer 9.61:1
+PASS: Light onTertiary/tertiary 6.50:1
+PASS: Light onSurface/surface 16.23:1
+PASS: Light onSurfaceVariant/surfaceVariant 7.25:1
+PASS: Light onError/error 6.46:1
+These checks cover static palette pairs only, not every composited screen or dynamic wallpaper palette.

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_back">Go back</string>
+    <string name="a11y_connection">Toggle connection</string>
+    <string name="a11y_selected">Selected</string>
+    <string name="a11y_options">Connection options</string>
+    <string name="a11y_locked">Locked while connected</string>
+    <string name="a11y_copy">Copy logs</string>
+    <string name="a11y_share">Share logs</string>
+    <string name="a11y_delete">Clear logs</string>
+</resources>

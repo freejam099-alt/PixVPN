@@ -2,7 +2,6 @@ name: Build APKs
 
 on:
   push:
-    branches: [main, master]
     tags: ["v*"]
   workflow_dispatch:
     inputs:
@@ -34,9 +33,7 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - { abi: arm64-v8a,   target: aarch64-linux-android,   goarch: arm64, goarm: "" }
-          - { abi: armeabi-v7a, target: armv7-linux-androideabi, goarch: arm,   goarm: "7" }
-          - { abi: x86_64,      target: x86_64-linux-android,    goarch: amd64, goarm: "" }
+          - { abi: arm64-v8a, target: aarch64-linux-android, goarch: arm64, goarm: "" }
     steps:
       - name: Checkout (this repo)
         uses: actions/checkout@v4
@@ -117,6 +114,15 @@ jobs:
           cp stage/pt/psiphon-tunnel-core "$d/libpsiphon.so"
           cp stage/pt/lyrebird            "$d/liblyrebird.so"
           cp "hev/libs/${{ matrix.abi }}/libhev-socks5-tunnel.so" "$d/libhev-socks5-tunnel.so"
+          # Never package host Linux/glibc binaries as Android native libraries.
+          for f in "$d"/*.so; do
+            file "$f"
+            interpreter=$(readelf -l "$f" | sed -n 's/.*Requesting program interpreter: \([^]]*\).*/\1/p')
+            if [ -n "$interpreter" ] && [ "$interpreter" != /system/bin/linker64 ]; then
+              echo "ERROR: non-Android interpreter in $f: $interpreter"; exit 1
+            fi
+            readelf -d "$f" | grep -Eq 'libc\.so\.6|ld-linux|libpthread\.so' && { echo "ERROR: glibc dependency in $f"; exit 1; } || true
+          done
           ls -l "$d"
 
       - uses: actions/upload-artifact@v4
@@ -153,10 +159,8 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # Same gomobile fork, flags and Java package as sing-box's own Android build
-      # (cmd/internal/build_libbox), with only the features this app needs:
-      # the gVisor TUN stack and the Clash API that libbox's service always creates (no Tailscale, no Naive).
-      # arm + arm64 cover the APKs that are published.
+      # Same gomobile fork, flags and Java package as sing-box's own Android build.
+      # Release distribution is strictly ARM64; build no arm32/x86 variants.
       - name: Build libbox.aar
         working-directory: sing-box
         env:
@@ -168,7 +172,7 @@ jobs:
           version="${SINGBOX_REF#v}"
           gomobile bind -v \
             -o libbox.aar \
-            -target android/arm,android/arm64 \
+            -target android/arm64 \
             -androidapi 23 \
             -javapkg=io.nekohasekai \
             -libname=box \
@@ -221,41 +225,52 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.11.1"
-
-      - name: Decode keystore (optional)
+      - name: Decode release keystore (required)
         env:
           KS: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          if [ -n "$KS" ]; then
-            echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"
-            echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-          else
-            echo "No KEYSTORE_BASE64 secret: signing with the debug key."
-          fi
+          set -euo pipefail
+          test -n "$KS" || { echo "ERROR: KEYSTORE_BASE64 is required; refusing unsigned CI distribution"; exit 1; }
+          printf '%s' "$KS" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          test -s "$RUNNER_TEMP/release.jks"
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Verify release signing inputs
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || {
+            echo "ERROR: release signing secrets are incomplete; refusing CI distribution"; exit 1;
+          }
 
       - name: Assemble release APKs
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: gradle :app:assembleRelease --no-daemon --stacktrace
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
 
-      - name: Collect APKs
+      - name: Collect ARM64 release APK
         run: |
+          set -euo pipefail
           mkdir -p out
           cd app/build/outputs/apk/release
           ls -l
-          cp *armeabi-v7a*.apk ../../../../../out/8VPN-armeabi-v7a.apk
-          cp *arm64-v8a*.apk   ../../../../../out/8VPN-arm64-v8a.apk
-          cp *universal*.apk   ../../../../../out/8VPN-universal.apk
+          shopt -s nullglob
+          apks=( *arm64-v8a*.apk )
+          test "${#apks[@]}" -eq 1 || { echo "ERROR: expected exactly one arm64-v8a APK"; exit 1; }
+          ! compgen -G '*armeabi-v7a*.apk' >/dev/null
+          ! compgen -G '*x86*.apk' >/dev/null
+          ! compgen -G '*universal*.apk' >/dev/null
+          cp "${apks[0]}" ../../../../../out/PixVPN-arm64-v8a.apk
           ls -l ../../../../../out
 
       - uses: actions/upload-artifact@v4
         with:
-          name: 8VPN-apks
+          name: PixVPN-apks
           path: out/*.apk
           if-no-files-found: error
 

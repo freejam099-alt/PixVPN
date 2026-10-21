@@ -1,0 +1,11 @@
+.gradle/
+build/
+app/build/
+local.properties
+scripts/__pycache__/
+*.jks
+*.keystore
+keystores/
+app/libs/*.aar
+app/src/main/jniLibs/
+out/

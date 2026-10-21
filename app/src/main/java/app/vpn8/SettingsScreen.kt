@@ -1,8 +1,9 @@
-package app.vpn8
+package com.pixvpn.gram
 
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
@@ -44,7 +45,10 @@ fun SettingsScreen(
     Page(stringResource(R.string.settings), back, actions = {
         IconBtn(Ico.INFO, openAbout)
     }) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
             Banner(stringResource(R.string.restart_note))
 
             // ---- General
@@ -176,7 +180,7 @@ fun SettingsScreen(
                 ActionRow(Ico.LOGS, stringResource(R.string.open_logs), onClick = openLogs)
                 ActionRow(Ico.TRASH, stringResource(R.string.clear_cache), enabled = st.phase == Phase.IDLE, danger = true) { confirmClear = true }
             }
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(40.dp))
         }
     }
 

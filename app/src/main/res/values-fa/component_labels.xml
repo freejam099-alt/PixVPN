@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_back">بازگشت</string>
+    <string name="a11y_connection">تغییر وضعیت اتصال</string>
+    <string name="a11y_selected">انتخاب شده</string>
+    <string name="a11y_options">گزینه‌های اتصال</string>
+    <string name="a11y_locked">هنگام اتصال قفل است</string>
+    <string name="a11y_copy">کپی گزارش‌ها</string>
+    <string name="a11y_share">اشتراک‌گذاری گزارش‌ها</string>
+    <string name="a11y_delete">پاک کردن گزارش‌ها</string>
+</resources>

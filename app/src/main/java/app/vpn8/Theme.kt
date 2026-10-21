@@ -1,9 +1,13 @@
-package app.vpn8
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
+package com.pixvpn.gram
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -16,7 +20,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /** Extra brand colors that Material's color scheme has no slot for. */
 @Immutable
@@ -26,40 +33,59 @@ class Extra(val a: Color, val b: Color, val busy: Color) {
 
 val LocalExtra = staticCompositionLocalOf { Extra(Color(0xFF3DDBC4), Color(0xFF7C8CFF), Color(0xFFFFB84D)) }
 
+// Botanical lime + lilac: bright actions against quiet, plum-tinted surfaces.
+// Every accent has an explicit on-color; dynamic wallpaper palettes remain supported.
 private val Dark = darkColorScheme(
-    primary = Color(0xFF8D9BFF), onPrimary = Color(0xFF0B1240),
-    primaryContainer = Color(0xFF2A3487), onPrimaryContainer = Color(0xFFDDE1FF),
-    secondary = Color(0xFF3DDBC4), onSecondary = Color(0xFF00382F),
-    tertiary = Color(0xFFFFB84D), onTertiary = Color(0xFF3B2800),
-    background = Color(0xFF0A0E1A), onBackground = Color(0xFFE8EAF6),
-    surface = Color(0xFF0A0E1A), onSurface = Color(0xFFE8EAF6),
-    surfaceVariant = Color(0xFF222B42), onSurfaceVariant = Color(0xFFA9B1CC),
-    surfaceContainer = Color(0xFF131A2B), surfaceContainerHigh = Color(0xFF1B2438),
-    surfaceContainerHighest = Color(0xFF232E47),
-    outline = Color(0xFF55607F), outlineVariant = Color(0xFF263050),
-    error = Color(0xFFFF8A8A),
+    primary = Color(0xFFD5ED9B), onPrimary = Color(0xFF263500),
+    primaryContainer = Color(0xFF3D5017), onPrimaryContainer = Color(0xFFE0F8AD),
+    secondary = Color(0xFFD3BEF4), onSecondary = Color(0xFF392751),
+    secondaryContainer = Color(0xFF514068), onSecondaryContainer = Color(0xFFEEDDFF),
+    tertiary = Color(0xFFFFB3C1), onTertiary = Color(0xFF521D2C),
+    tertiaryContainer = Color(0xFF703342), onTertiaryContainer = Color(0xFFFFD9E0),
+    background = Color(0xFF141318), onBackground = Color(0xFFE8E0E9),
+    surface = Color(0xFF141318), onSurface = Color(0xFFE8E0E9),
+    surfaceVariant = Color(0xFF49454F), onSurfaceVariant = Color(0xFFCBC4D0),
+    surfaceContainerLowest = Color(0xFF0F0D12), surfaceContainerLow = Color(0xFF1D1B21),
+    surfaceContainer = Color(0xFF211F26), surfaceContainerHigh = Color(0xFF2C2931),
+    surfaceContainerHighest = Color(0xFF37343C),
+    outline = Color(0xFF958E9A), outlineVariant = Color(0xFF49454F),
+    error = Color(0xFFFFB4AB), onError = Color(0xFF690005),
+    errorContainer = Color(0xFF93000A), onErrorContainer = Color(0xFFFFDAD6),
 )
 
 private val Light = lightColorScheme(
-    primary = Color(0xFF4F5BD5), onPrimary = Color.White,
-    primaryContainer = Color(0xFFE0E3FF), onPrimaryContainer = Color(0xFF0B1470),
-    secondary = Color(0xFF0FA58F), onSecondary = Color.White,
-    tertiary = Color(0xFFD98200), onTertiary = Color.White,
-    background = Color(0xFFF4F6FC), onBackground = Color(0xFF151A2C),
-    surface = Color(0xFFF4F6FC), onSurface = Color(0xFF151A2C),
-    surfaceVariant = Color(0xFFE4E8F5), onSurfaceVariant = Color(0xFF586080),
-    surfaceContainer = Color(0xFFFFFFFF), surfaceContainerHigh = Color(0xFFEEF1FA),
-    surfaceContainerHighest = Color(0xFFE6EAF7),
-    outline = Color(0xFF8B93B0), outlineVariant = Color(0xFFDDE2F0),
-    error = Color(0xFFD93A3A),
+    primary = Color(0xFF486318), onPrimary = Color.White,
+    primaryContainer = Color(0xFFD5ED9B), onPrimaryContainer = Color(0xFF293F00),
+    secondary = Color(0xFF695382), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFEEDDFF), onSecondaryContainer = Color(0xFF3F2C57),
+    tertiary = Color(0xFF8D495A), onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFFFD9E0), onTertiaryContainer = Color(0xFF713343),
+    background = Color(0xFFFCF8FD), onBackground = Color(0xFF1D1B21),
+    surface = Color(0xFFFCF8FD), onSurface = Color(0xFF1D1B21),
+    surfaceVariant = Color(0xFFE8E0EB), onSurfaceVariant = Color(0xFF49454F),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF6F2F7),
+    surfaceContainer = Color(0xFFF0ECF1), surfaceContainerHigh = Color(0xFFEAE6EB),
+    surfaceContainerHighest = Color(0xFFE4E0E5),
+    outline = Color(0xFF7A747F), outlineVariant = Color(0xFFCBC4D0),
+    error = Color(0xFFBA1A1A), onError = Color.White,
+    errorContainer = Color(0xFFFFDAD6), onErrorContainer = Color(0xFF93000A),
 )
 
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(22.dp),
-    extraLarge = RoundedCornerShape(28.dp),
+    small = RoundedCornerShape(16.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(28.dp),
+    extraLarge = RoundedCornerShape(32.dp),
+)
+
+private val ExpressiveType = Typography(
+    displaySmall = TextStyle(fontSize = 40.sp, lineHeight = 46.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp),
+    headlineLarge = TextStyle(fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold, letterSpacing = (-.6).sp),
+    headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.SemiBold),
+    titleLarge = TextStyle(fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold),
+    titleMedium = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
+    labelLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
 )
 
 @Composable
@@ -74,7 +100,8 @@ fun AppTheme(s: Settings, dark: Boolean, content: @Composable () -> Unit) {
     val extra = if (dynamic) Extra(scheme.primary, scheme.tertiary, scheme.tertiary)
     else Extra(scheme.secondary, scheme.primary, scheme.tertiary)
     CompositionLocalProvider(LocalExtra provides extra) {
-        MaterialTheme(colorScheme = scheme, shapes = AppShapes, content = content)
+        MaterialExpressiveTheme(colorScheme = scheme, shapes = AppShapes,
+            motionScheme = MotionScheme.expressive(), typography = ExpressiveType, content = content)
     }
 }
 

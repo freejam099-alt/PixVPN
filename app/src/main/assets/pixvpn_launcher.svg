@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+ <defs><linearGradient id="pixGradient" x1="18" y1="86" x2="91" y2="20" gradientUnits="userSpaceOnUse"><stop stop-color="#22C55E"/><stop offset=".38" stop-color="#FACC15"/><stop offset=".68" stop-color="#F97316"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs>
+ <path fill="#102A43" d="M0 0h108v108H0z"/>
+ <path fill="url(#pixGradient)" d="M19 82 37 59c7-19 18-31 43-39 2 25-7 39-25 51L31 89z"/>
+ <path fill="#22C55E" d="m40 61-22 5 13 10 13-5z"/><path fill="#38BDF8" d="m68 34 14-14-1 20z"/>
+ <circle cx="64" cy="42" r="5" fill="#102A43" stroke="#FDE68A" stroke-width="2"/>
+ <path fill="#FACC15" d="m27 84 10-4 6 5-14 7z"/>
+</svg>

@@ -5,25 +5,31 @@ plugins {
 }
 
 android {
-    namespace = "app.vpn8"
+    namespace = "com.pixvpn.gram"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "app.vpn8"
+        applicationId = "com.pixvpn.gram"
         minSdk = 26
         targetSdk = 35
-        versionCode = 28
-        versionName = "2.8"
+        versionCode = 29
+        versionName = "2.9"
     }
 
+    // Local verification may remain unsigned. CI must provide all four values and
+    // explicitly opt into the release signing config (the workflow enforces this).
     val ksPath = System.getenv("KEYSTORE_FILE")
+    val ksPassword = System.getenv("KEYSTORE_PASSWORD")
+    val keyAlias = System.getenv("KEY_ALIAS")
+    val keyPassword = System.getenv("KEY_PASSWORD")
     signingConfigs {
-        if (ksPath != null && file(ksPath).exists()) {
+        if (!ksPath.isNullOrBlank() && file(ksPath).isFile &&
+            !ksPassword.isNullOrBlank() && !keyAlias.isNullOrBlank() && !keyPassword.isNullOrBlank()) {
             create("release") {
                 storeFile = file(ksPath)
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS")
-                keyPassword = System.getenv("KEY_PASSWORD")
+                storePassword = ksPassword
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPassword
             }
         }
     }
@@ -33,18 +39,19 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Falls back to the debug key when no release keystore is provided.
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // No debug fallback: absent credentials intentionally produces an unsigned
+            // local verification APK; CI rejects that configuration before Gradle runs.
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
-    // Three outputs: armeabi-v7a, arm64-v8a and a universal APK (v7a + v8a + x86_64).
+    // Distribution target is strictly ARM64-v8a. No 32-bit, x86, or universal APK.
     splits {
         abi {
             isEnable = true
             reset()
-            include("armeabi-v7a", "arm64-v8a")
-            isUniversalApk = true
+            include("arm64-v8a")
+            isUniversalApk = false
         }
     }
 
@@ -68,9 +75,13 @@ android {
 }
 
 dependencies {
-    implementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    // Kotlin 2.0.21 + Compose compiler plugin; alpha18 is the public Expressive API
+    // line used by the UI (MaterialExpressiveTheme, MotionScheme, ButtonGroup, etc.).
+    implementation(platform("androidx.compose:compose-bom:2025.05.01"))
     implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material3:material3:1.4.0-alpha18")
+    implementation("androidx.compose.material3:material3-window-size-class:1.4.0-alpha18")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.core:core-ktx:1.15.0")
