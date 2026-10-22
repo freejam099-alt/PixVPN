@@ -86,7 +86,8 @@ object ArgBuilder {
             a += listOf("--psiphon-dir", File(dir, if (psiSlot == 0) "psiphon" else "psiphon-$psiSlot").path)
             if (r != Route.PSIPHON_ONLY) a += listOf("--psiphon-bind", "127.0.0.1:$PSIPHON_PORT")
             a += listOf("--psiphon-mode", s.psiphonMode)
-            if (s.psiphonRegion.isNotBlank()) a += listOf("--psiphon-region", s.psiphonRegion.uppercase())
+            val region = PsiphonRegions.normalize(s.psiphonRegion)
+            if (region.isNotBlank()) a += listOf("--psiphon-region", region)
         }
         if (r.usesTor) {
             a += listOf("--tor-dir", File(dir, "tor").path)

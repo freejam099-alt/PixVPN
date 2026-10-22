@@ -185,7 +185,7 @@ object SettingsStore {
         val socks = if (s.socksPort in 1024..65535 && s.socksPort != TOR_PORT && s.socksPort != PSIPHON_PORT) s.socksPort else 1819
         var http = if (s.httpPort in 1024..65535 && s.httpPort != TOR_PORT && s.httpPort != PSIPHON_PORT) s.httpPort else 1822
         if (http == socks) http = if (socks == 1822) 1823 else 1822
-        return s.copy(socksPort = socks, httpPort = http)
+        return s.copy(socksPort = socks, httpPort = http, psiphonRegion = PsiphonRegions.normalize(s.psiphonRegion))
     }
 
     private fun load(): Settings {
@@ -221,7 +221,7 @@ object SettingsStore {
             routeBlock = str("routeBlock", d.routeBlock),
             routeDirect = str("routeDirect", d.routeDirect),
             dns = str("dns", d.dns),
-            psiphonRegion = str("psiphonRegion", d.psiphonRegion),
+            psiphonRegion = PsiphonRegions.normalize(str("psiphonRegion", d.psiphonRegion)),
             psiphonMode = str("psiphonMode", d.psiphonMode),
             torBridges = str("torBridges", d.torBridges),
             socksPort = prefs.getInt("socksPort", d.socksPort),

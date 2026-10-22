@@ -150,6 +150,7 @@ fun SettingsScreen(
             // ---- Psiphon
             Group(stringResource(R.string.sec_psiphon)) {
                 RegionButton(s, true) { regionDialog = true }
+                Hint(stringResource(R.string.region_route_hint))
                 Field(stringResource(R.string.psiphon_mode)) {
                     Chips(listOf("auto" to "Auto", "cdn" to "CDN"), s.psiphonMode) { v -> up { it.copy(psiphonMode = v) } }
                 }

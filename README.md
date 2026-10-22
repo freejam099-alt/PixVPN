@@ -2,7 +2,7 @@
 
 Klien VPN Android dengan tampilan **Material 3 Expressive**, tombol koneksi bulat gradasi kuning–oranye–hijau–biru, dan animasi roket. Roket meluncur saat menghubungkan, berhenti di bulan saat tersambung, dan pecah ketika koneksi gagal sehingga Anda bisa mencoba lagi.
 
-**Nama aplikasi:** PixVPN · **Paket:** `com.pixvpn.gram` · **Versi:** 2.9 · **Android:** 8.0+ · **Arsitektur APK:** ARM64-v8a saja.
+**Nama aplikasi:** PixVPN · **Paket:** `com.pixvpn.gram` · **Versi:** 2.9.1 · **Android:** 8.0+ · **Arsitektur APK:** ARM64-v8a saja.
 
 [Unduh APK dari Releases](https://github.com/freejam099-alt/PixVPN/releases) · [Source code](https://github.com/freejam099-alt/PixVPN)
 
@@ -35,6 +35,14 @@ Austria, Australia, Belgia, Bulgaria, Brasil, Kanada, Swiss, Ceko, Jerman, Denma
 
 Paket PixVPN berbeda dari aplikasi lama `app.vpn8`, sehingga dapat dipasang berdampingan. Pengaturan aplikasi lama tidak otomatis dipindahkan. Jangan menghapus aplikasi lama bila masih membutuhkan datanya.
 
+## Perbaikan koneksi Brazil di 2.9.1
+
+Untuk meminta exit Brazil, pilih **Psiphon only → region Brasil (BR) → mode Auto**. Rute **Aether → Psiphon** juga memakai exit Psiphon, tetapi membutuhkan tunnel WARP lebih dahulu. Rute Aether biasa mengabaikan region Psiphon, sedangkan **Psiphon → Aether** keluar melalui WARP dan tidak menjamin IP Brazil.
+
+Status Connected sekarang menunggu notice Psiphon siap dan respons HTTP 204 melalui proxy tujuan; port lokal yang terbuka atau halaman error tidak lagi dianggap koneksi berhasil. Bila CDN gagal, retry memperluas transport ke Auto untuk sesi itu saja, tanpa mengganti pilihan BR. Kode region dinormalisasi dan kegagalan menampilkan region terakhir yang ditawarkan Psiphon jika notice tersebut tersedia. Daftar itu berasal dari penemuan server, bukan bukti setiap server online; tidak adanya BR tidak langsung membatalkan penemuan berikutnya.
+
+Patch ini tidak menambahkan server Brazil baru dan tidak menjamin region pihak ketiga selalu tersedia. Jika BR tetap gagal, bandingkan dengan region Auto untuk membedakan masalah bootstrap umum dari masalah region, lalu simpan log diagnosis. Memilih Auto secara manual dapat menghasilkan negara lain.
+
 ## Build sendiri
 
 Gunakan JDK 17, Android SDK 35, dan Gradle wrapper yang tersedia. Dependensi native tidak disimpan sebagai binary di source Git:
@@ -48,6 +56,7 @@ Set variabel lingkungan `KEYSTORE_FILE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, dan `
 
 ```sh
 ./scripts/build-release.sh
+./gradlew :app:testDebugUnitTest
 python3 scripts/check_design_invariants.py
 python3 scripts/test_runtime_invariants.py
 python3 scripts/verify_release.py app/build/outputs/apk/release/app-arm64-v8a-release.apk

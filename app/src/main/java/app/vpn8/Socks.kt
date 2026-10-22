@@ -6,6 +6,10 @@ import java.net.Socket
 
 /** Tiny SOCKS5 client used for the ping probe and the exit-IP lookup. */
 object Socks {
+    fun isSuccessfulProbe(response: Pair<Long, String>?): Boolean =
+        response != null && Regex("^HTTP/1\\.[01] 204(?: [^\\r\\n]*)?\\r\\n")
+            .containsMatchIn(response.second)
+
     private fun readFully(i: InputStream, b: ByteArray) {
         var n = 0
         while (n < b.size) {
@@ -79,10 +83,24 @@ object Socks {
     /** Returns (milliseconds to first response byte, response text) or null on failure. */
     fun httpGet(port: Int, host: String, path: String, timeoutMs: Int): Pair<Long, String>? = try {
         Socket().use { s ->
-            s.connect(InetSocketAddress("127.0.0.1", port), timeoutMs)
-            s.soTimeout = timeoutMs
+            val deadline = System.nanoTime() + timeoutMs.coerceAtLeast(1) * 1_000_000L
+            fun remainingMs(): Int {
+                val left = deadline - System.nanoTime()
+                if (left <= 0) throw java.net.SocketTimeoutException("probe deadline")
+                return (left / 1_000_000).coerceIn(1, Int.MAX_VALUE.toLong()).toInt()
+            }
+            s.connect(InetSocketAddress("127.0.0.1", port), remainingMs())
             val o = s.getOutputStream()
-            val i = s.getInputStream()
+            val i = object : java.io.FilterInputStream(s.getInputStream()) {
+                private fun remaining() {
+                    s.soTimeout = remainingMs()
+                }
+                override fun read(): Int { remaining(); return super.read() }
+                override fun read(b: ByteArray, off: Int, len: Int): Int {
+                    remaining()
+                    return super.read(b, off, len)
+                }
+            }
             val t0 = System.nanoTime()
             o.write(byteArrayOf(5, 1, 0)); o.flush()
             val r = ByteArray(2); readFully(i, r)

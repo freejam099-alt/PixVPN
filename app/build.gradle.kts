@@ -12,8 +12,8 @@ android {
         applicationId = "com.pixvpn.gram"
         minSdk = 26
         targetSdk = 35
-        versionCode = 29
-        versionName = "2.9"
+        versionCode = 30
+        versionName = "2.9.1"
     }
 
     // Local verification may remain unsigned. CI must provide all four values and
@@ -86,6 +86,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    testImplementation("junit:junit:4.13.2")
     // sing-box (libbox), built by the "libbox" job of the GitHub workflow into app/libs/libbox.aar.
     implementation(files("libs/libbox.aar"))
 }

@@ -8,6 +8,9 @@ object PsiphonRegions {
         "HU", "IE", "IN", "IT", "JP", "LV", "NL", "NO", "PL", "RO", "RS", "SE", "SG", "SK", "UA", "US",
     )
 
+    fun normalize(cc: String): String = cc.trim().uppercase(Locale.ROOT)
+        .takeIf { it.matches(Regex("[A-Z]{2}")) } ?: ""
+
     fun flag(cc: String): String =
         cc.uppercase().map { String(Character.toChars(0x1F1E6 + (it - 'A'))) }.joinToString("")
 

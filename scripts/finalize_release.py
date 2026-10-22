@@ -16,7 +16,7 @@ subprocess.run([sys.executable, str(root / 'scripts/verify_release.py'), str(a.a
                 '--expected-cert-sha256', a.expected_cert_sha256], check=True)
 out = root / 'out'
 out.mkdir(exist_ok=True)
-target = out / 'PixVPN-2.9-arm64-v8a.apk'
+target = out / 'PixVPN-2.9.1-arm64-v8a.apk'
 shutil.copy2(a.apk, target)
 digest = hashlib.file_digest(target.open('rb'), 'sha256').hexdigest()
 target.with_suffix('.apk.sha256').write_text(f'{digest}  {target.name}\n')

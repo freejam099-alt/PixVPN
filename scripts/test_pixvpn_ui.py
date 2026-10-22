@@ -12,7 +12,8 @@ about = (code / 'OtherScreens.kt').read_text()
 gradle = (root / 'app/build.gradle.kts').read_text()
 assert 'applicationId = "com.pixvpn.gram"' in gradle
 assert 'namespace = "com.pixvpn.gram"' in gradle
-assert 'versionCode = 29' in gradle
+assert 'versionCode = 30' in gradle
+assert 'versionName = "2.9.1"' in gradle
 for f in code.glob('*.kt'):
     if f.name == 'Tun2Socks.kt': continue  # legacy JNI symbol bridge
     assert re.search(r'^package com\.pixvpn\.gram$', f.read_text(), re.M), f'Unmigrated namespace: {f.name}'

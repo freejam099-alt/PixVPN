@@ -43,9 +43,9 @@ with zipfile.ZipFile(a.apk) as z:
 badging = run(tools / 'aapt', 'dump', 'badging', a.apk)
 assert 'application-debuggable' not in badging, 'APK is debuggable'
 assert "package: name='com.pixvpn.gram'" in badging, 'Wrong application ID'
-assert "versionCode='29'" in badging and "versionName='2.9'" in badging, 'Wrong release version'
+assert "versionCode='30'" in badging and "versionName='2.9.1'" in badging, 'Wrong release version'
 assert "application-label:'PixVPN'" in badging, 'Wrong app label'
-print('PASS: PixVPN / com.pixvpn.gram / 2.9 (29)')
+print('PASS: PixVPN / com.pixvpn.gram / 2.9.1 (30)')
 print('PASS: manifest is not debuggable')
 signing = run(tools / 'apksigner', 'verify', '--verbose', '--print-certs', a.apk)
 if a.expected_cert_sha256:

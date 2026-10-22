@@ -15,7 +15,12 @@ class CoreProcess(private val ctx: Context) {
     /** Psiphon could not open its database (a leftover helper still holds the lock). */
     @Volatile var datastoreFailed = false
 
+    @Volatile var availablePsiphonRegions: Set<String>? = null
+
     fun start(allArgs: List<String>) {
+        psiphonReady = false
+        datastoreFailed = false
+        availablePsiphonRegions = null
         // NAME=value tokens in the extra arguments are environment variables, not flags.
         val envRe = Regex("^[A-Z][A-Z0-9_]*=.*")
         val args = allArgs.filterNot { envRe.matches(it) }
@@ -42,6 +47,7 @@ class CoreProcess(private val ctx: Context) {
                 p.inputStream.bufferedReader().forEachLine {
                     if (it.contains("psiphon is ready")) psiphonReady = true
                     if (it.contains("tryDatastoreOpenDB") || it.contains("openDataStore")) datastoreFailed = true
+                    PsiphonNotice.availableRegions(it)?.let { regions -> availablePsiphonRegions = regions }
                     Engine.log(it)
                 }
             } catch (_: Exception) { }

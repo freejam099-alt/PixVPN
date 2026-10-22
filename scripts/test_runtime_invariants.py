@@ -48,6 +48,15 @@ def main():
           "background health jobs are not tied to the connection session")
     check("val deadline = t0 + budgetMs" in socks and "remainingTimeout()" in socks,
           "download health-check budget does not cover socket reads")
+    start = tunnel[tunnel.index("private suspend fun startCore"):tunnel.index("private fun cleanPsiphonDirs")]
+    check("|| waited > 60_000" not in start, "Psiphon ready is bypassed after 60 seconds")
+    check("!s.route.usesPsiphon || c.psiphonReady" in start, "Psiphon ready gate missing")
+    check("Socks.isSuccessfulProbe" in start and "if (verified && c.alive) return true" in start,
+          "open listener is accepted without a real proxy probe")
+    check('s.copy(psiphonMode = "auto")' in tunnel, "CDN-only failure does not widen transports")
+    check('s.copy(psiphonRegion = "")' not in tunnel, "requested region silently falls back to Auto")
+    check("startFailureReason(s, attempt)" in tunnel and "region_not_offered" in tunnel,
+          "requested-region failure diagnostics missing")
     print("PASS: runtime source invariants (not Android/VPN runtime tests)")
 
 if __name__ == "__main__":

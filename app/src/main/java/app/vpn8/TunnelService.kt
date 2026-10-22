@@ -265,7 +265,14 @@ class TunnelService : VpnService() {
                 }
             } else {
                 failures++
-                Engine.lastReason.value = getString(R.string.reason_start, attempt)
+                Engine.lastReason.value = startFailureReason(s, attempt)
+                Engine.log(Engine.lastReason.value!!)
+                // CDN-only can exclude the selected region's usable transports.
+                // Widen transports, never silently change the requested exit country.
+                if (s.route.usesPsiphon && s.psiphonMode == "cdn") {
+                    s = s.copy(psiphonMode = "auto")
+                    Engine.log("Retrying Psiphon with all transports; requested region unchanged")
+                }
                 if (s.route.usesPsiphon && core?.datastoreFailed == true) {
                     psiSlot++
                     Engine.log("Psiphon could not open its data folder: the next attempt uses a fresh one")
@@ -275,7 +282,7 @@ class TunnelService : VpnService() {
                     cycle++
                     if (cycle >= 2) {
                         stopCore()
-                        finish(getString(R.string.connect_failed))
+                        finish(Engine.lastReason.value ?: getString(R.string.connect_failed))
                         return
                     }
                     Engine.log("No luck. Dropping everything and starting over with a fresh scan")
@@ -283,6 +290,19 @@ class TunnelService : VpnService() {
             }
             stopCore()
             delay(s.retryMs())
+        }
+    }
+
+    private fun startFailureReason(s: Settings, attempt: Int): String {
+        if (!s.route.usesPsiphon || s.psiphonRegion.isBlank()) {
+            return getString(R.string.reason_start, attempt)
+        }
+        val region = s.psiphonRegion.trim().uppercase(java.util.Locale.ROOT)
+        val offered = core?.availablePsiphonRegions
+        return if (offered != null && region !in offered) {
+            getString(R.string.region_not_offered, region, offered.sorted().joinToString(", "))
+        } else {
+            getString(R.string.region_connect_failed, region)
         }
     }
 
@@ -309,15 +329,26 @@ class TunnelService : VpnService() {
             else -> 300_000L
         }
         val deadline = SystemClock.elapsedRealtime() + limit
+        var nextProbeAt = 0L
         while (currentCoroutineContext().isActive && SystemClock.elapsedRealtime() < deadline) {
             if (!c.alive) return false
-            val waited = SystemClock.elapsedRealtime() - (deadline - limit)
             // Aether opens the Psiphon/Tor port immediately and only starts the SOCKS port once the
             // WARP tunnel is validated, so wait for both, plus Psiphon's own "ready" line.
             val ready = withContext(Dispatchers.IO) {
                 portOpen(port) && (port == s.socksPort || portOpen(s.socksPort))
-            } && (!s.route.usesPsiphon || c.psiphonReady || waited > 60_000)
-            if (ready) return true
+            } && (!s.route.usesPsiphon || c.psiphonReady)
+            if (ready && SystemClock.elapsedRealtime() >= nextProbeAt) {
+                val verified = withContext(Dispatchers.IO) {
+                    listOf("cp.cloudflare.com", "www.gstatic.com").any { host ->
+                        val left = deadline - SystemClock.elapsedRealtime()
+                        left > 0 && Socks.isSuccessfulProbe(
+                            Socks.httpGet(port, host, "/generate_204", minOf(left, 8000).toInt())
+                        )
+                    }
+                }
+                if (verified && c.alive) return true
+                nextProbeAt = SystemClock.elapsedRealtime() + 5000
+            }
             delay(500)
         }
         return false
@@ -373,7 +404,9 @@ class TunnelService : VpnService() {
             }
             val r = withContext(Dispatchers.IO) {
                 Socks.httpGet(port, "cp.cloudflare.com", "/generate_204", timeout)
+                    ?.takeIf { Socks.isSuccessfulProbe(it) }
                     ?: Socks.httpGet(port, "www.gstatic.com", "/generate_204", timeout)
+                        ?.takeIf { Socks.isSuccessfulProbe(it) }
             }
             if (networkChanged) return
             val now = SystemClock.elapsedRealtime()

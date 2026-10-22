@@ -101,6 +101,9 @@
     <string name="reason_network">the network changed (Wi-Fi / mobile data)</string>
     <string name="reason_rescan">a rescan was requested</string>
     <string name="reason_start">could not connect (attempt %1$d)</string>
+    <string name="region_not_offered">Could not connect to %1$s. Psiphon last advertised these regions: %2$s. Try Auto or retry later; the selected country has not been changed.</string>
+    <string name="region_connect_failed">Could not establish a working tunnel for %1$s. Try Psiphon only with Auto transport, check your network, or retry later. The selected country has not been changed.</string>
+    <string name="region_route_hint">Country selection applies only to Psiphon routes. For a Brazil exit, use Psiphon only or Aether → Psiphon and select BR. Reverse routes exit through WARP. Region availability depends on Psiphon.</string>
     <string name="max_tries">Connection attempts before giving up (default 3)</string>
     <string name="retry_delay">Delay between attempts, milliseconds (default 500)</string>
     <string name="quick_reconnect">Quick reconnect to last gateway</string>
